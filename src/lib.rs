@@ -40,7 +40,7 @@ fn matrix_add(matrix1: &str, matrix2: &str) -> String {
     let mat1: MyArray2 = matrix1.parse().unwrap_or_else(|_| panic!("Failed to parse matrix1"));
     let mat2: MyArray2 = matrix2.parse().unwrap_or_else(|_| panic!("Failed to parse matrix2"));
 
-    // Perform addition
+    // Perform add
     let result = mat1.0 + mat2.0;  // Access the inner Array2<f64> via mat1.0 and mat2.0
 
     // Convert result to string
