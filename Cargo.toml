@@ -19,6 +19,7 @@ pg_test = []
 [dependencies]
 pgrx = "0.10.2"
 openblas-src = "0.10"
+cblas-sys = "0.1.4"
 ndarray = "0.15"
 rand = "0.8"
 ndarray-rand = "0.13"
@@ -26,7 +27,6 @@ ndarray-linalg = "0.13"
 rust-blas = "0.2.0"
 tokio = { version = "1", features = ["full"] }
 tokio-postgres = "0.7"
-cblas-sys = "0.1.4"
 clang-sys = { version = "1.0.0", optional = true }
 serde_json = "1.0"
 serde = "1.0"
