@@ -1,41 +1,22 @@
-extern crate pgrx;
-extern crate openblas_src;  // link to openblas
-extern crate cblas_sys;  // cblas interface
-extern crate serde;
-extern crate serde_json;
+    extern crate pgrx;
+    extern crate ndarray;
+    extern crate ndarray_linalg;
 
-use pgrx::*;
-use cblas_sys::*;
-use serde_json::Error as SerdeJsonError;
-use std::ptr;
+    use pgrx::*;
+    use ndarray::*;
+    use ndarray_linalg::*;
 
-pg_module_magic!();
 
-fn matrix_to_raw(matrix: Vec<Vec<f64>>) -> (*mut f64, i32, i32) {
-    let rows = matrix.len();
-    let cols = matrix[0].len();
-    let flat: Vec<f64> = matrix.into_iter().flatten().collect();
-    let raw_ptr = flat.as_ptr() as *mut f64;
-    // Ensure the vector isn't deallocated
-    std::mem::forget(flat);
-    (raw_ptr, rows as i32, cols as i32)
-}
+    pg_module_magic!();
 
-fn raw_to_matrix(ptr: *mut f64, rows: i32, cols: i32) -> Vec<Vec<f64>> {
-    let mut matrix = Vec::new();
-    for i in 0..rows {
-        let mut row = Vec::new();
-        for j in 0..cols {
-            unsafe {
-                let value = *ptr.offset((i * cols + j) as isize);
-                row.push(value);
-            }
-        }
-        matrix.push(row);
+    fn matrix_to_array(matrix: Vec<Vec<f64>>) -> Array2<f64> {
+        Array2::from_shape_vec((matrix.len(), matrix[0].len()), matrix.into_iter().flatten().collect()).unwrap()
     }
-    unsafe { libc::free(ptr as *mut libc::c_void) };
-    matrix
-}
+    
+    fn array_to_matrix(array: Array2<f64>) -> Vec<Vec<f64>> {
+        let (rows, cols) = array.dim();
+        (0..rows).map(|i| array.row(i).to_vec()).collect()
+    }
 
 #[pg_extern]
 fn matrix_add(matrix1: &str, matrix2: &str, rows: i32, cols: i32) -> Result<String, &'static str> {
@@ -45,25 +26,56 @@ fn matrix_add(matrix1: &str, matrix2: &str, rows: i32, cols: i32) -> Result<Stri
 
     let mat1: Vec<Vec<f64>> = serde_json::from_str(matrix1).unwrap();
     let mat2: Vec<Vec<f64>> = serde_json::from_str(matrix2).unwrap();
-    
-    let (ptr1, rows1, cols1) = matrix_to_raw(mat1);
-    let (ptr2, _, _) = matrix_to_raw(mat2);
 
-    let mut result_vec = vec![0.0; (rows1 * cols1) as usize];
-    let result_ptr = result_vec.as_mut_ptr();
+    let mut result_matrix = Vec::new();
 
-    for i in 0..(rows1 * cols1) {
-        unsafe {
-            *result_ptr.offset(i as isize) = *ptr1.offset(i as isize) + *ptr2.offset(i as isize);
+    for i in 0..rows {
+        let mut row = Vec::new();
+        for j in 0..cols {
+            let value = mat1[i as usize][j as usize] + mat2[i as usize][j as usize];
+            row.push(value);
         }
+        result_matrix.push(row);
     }
 
-    unsafe { libc::free(ptr1 as *mut libc::c_void) };
-    unsafe { libc::free(ptr2 as *mut libc::c_void) };
+    Ok(format!(
+        "[\n {} \n]",
+        result_matrix
+            .into_iter()
+            .map(|row| format!("[{}]", row.into_iter().map(|val| val.to_string()).collect::<Vec<_>>().join(", ")))
+            .collect::<Vec<_>>()
+            .join(",\n ")
+    ))
+}
 
-    let result_matrix = raw_to_matrix(result_ptr, rows1, cols1);
+#[pg_extern]
+fn matrix_subtract(matrix1: &str, matrix2: &str, rows: i32, cols: i32) -> Result<String, &'static str> {
+    if rows > 5 || cols > 5 {
+        return Err("Matrix dimensions should not exceed 5");
+    }
 
-    Ok(serde_json::to_string(&result_matrix).unwrap())
+    let mat1: Vec<Vec<f64>> = serde_json::from_str(matrix1).unwrap();
+    let mat2: Vec<Vec<f64>> = serde_json::from_str(matrix2).unwrap();
+
+    let mut result_matrix = Vec::new();
+
+    for i in 0..rows {
+        let mut row = Vec::new();
+        for j in 0..cols {
+            let value = mat1[i as usize][j as usize] - mat2[i as usize][j as usize];
+            row.push(value);
+        }
+        result_matrix.push(row);
+    }
+
+    Ok(format!(
+        "[\n {} \n]",
+        result_matrix
+            .into_iter()
+            .map(|row| format!("[{}]", row.into_iter().map(|val| val.to_string()).collect::<Vec<_>>().join(", ")))
+            .collect::<Vec<_>>()
+            .join(",\n ")
+    ))
 }
 
 #[pg_extern]
@@ -75,35 +87,74 @@ fn matrix_multiply(matrix1: &str, matrix2: &str, rows: i32, cols: i32) -> Result
     let mat1: Vec<Vec<f64>> = serde_json::from_str(matrix1).unwrap();
     let mat2: Vec<Vec<f64>> = serde_json::from_str(matrix2).unwrap();
 
-    let (ptr1, rows1, cols1) = matrix_to_raw(mat1);
-    let (ptr2, _, cols2) = matrix_to_raw(mat2);
+    let mut result_matrix = Vec::new();
 
-    let mut result_vec = vec![0.0; (rows1 * cols2) as usize];
-    let result_ptr = result_vec.as_mut_ptr();
-
-    unsafe {
-        cblas_dgemm(
-            CblasRowMajor,
-            CblasNoTrans,
-            CblasNoTrans,
-            rows1,
-            cols2,
-            cols1,
-            1.0,
-            ptr1,
-            cols1,
-            ptr2,
-            cols2,
-            0.0,
-            result_ptr,
-            cols2,
-        );
+    for i in 0..rows {
+        let mut row = Vec::new();
+        for j in 0..cols {
+            let mut value = 0.0;
+            for k in 0..cols {
+                value += mat1[i as usize][k as usize] * mat2[k as usize][j as usize];
+            }
+            row.push(value);
+        }
+        result_matrix.push(row);
     }
 
-    unsafe { libc::free(ptr1 as *mut libc::c_void) };
-    unsafe { libc::free(ptr2 as *mut libc::c_void) };
+    Ok(format!(
+        "[\n {} \n]",
+        result_matrix
+            .into_iter()
+            .map(|row| format!("[{}]", row.into_iter().map(|val| val.to_string()).collect::<Vec<_>>().join(", ")))
+            .collect::<Vec<_>>()
+            .join(",\n ")
+    ))
+}
 
-    let result_matrix = raw_to_matrix(result_ptr, rows1, cols2);
 
-    Ok(serde_json::to_string(&result_matrix).unwrap())
+#[pg_extern]
+fn matrix_transpose(matrix: &str, rows: i32, cols: i32) -> Result<String, &'static str> {
+    if rows > 5 || cols > 5 {
+        return Err("Matrix dimensions should not exceed 5");
+    }
+
+    let mat: Vec<Vec<f64>> = serde_json::from_str(matrix).unwrap();
+    let array = matrix_to_array(mat);
+
+    let mut result_matrix = Vec::new();
+
+    for i in 0..cols {
+        let mut row = Vec::new();
+        for j in 0..rows {
+            let value = array[[j as usize, i as usize]];
+            row.push(value);
+        }
+        result_matrix.push(row);
+    }
+
+    Ok(format!(
+        "[\n {} \n]",
+        result_matrix
+            .into_iter()
+            .map(|row| format!("[{}]", row.into_iter().map(|val| val.to_string()).collect::<Vec<_>>().join(", ")))
+            .collect::<Vec<_>>()
+            .join(",\n ")
+    ))
+}
+
+#[pg_extern]
+fn matrix_svd(matrix: &str, rows: i32, cols: i32) -> Result<String, &'static str> {
+    if rows > 5 || cols > 5 {
+        return Err("Matrix dimensions should not exceed 5");
+    }
+    
+    let mat: Vec<Vec<f64>> = serde_json::from_str(matrix).unwrap();
+    let a = Array2::from_shape_vec((rows as usize, cols as usize), mat.into_iter().flatten().collect()).unwrap();
+    
+    let (u, sigma, vt) = a.svd(true, true).unwrap();
+    
+    Ok(format!(
+        "U: {:?}, Sigma: {:?}, V^T: {:?}",
+        u, sigma, vt
+    ))
 }
