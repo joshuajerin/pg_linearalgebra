@@ -1,2 +1,3 @@
-# pg_blas
-BLAS Wrapper for Postgres
+# pg_linearAlgebra
+
+Linear Algebra extensions for Postgres
