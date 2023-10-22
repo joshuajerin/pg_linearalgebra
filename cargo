@@ -29,7 +29,7 @@ CWEAVE = cweave
 # default
 PC = pc
 # makefile
-CURDIR := /Users/work/Documents/Proj/pg_linearAlgebra
+CURDIR := /Users/work/Documents/Proj/pg_linearalgebra
 # makefile
 SHELL = /bin/sh
 # default
@@ -117,7 +117,7 @@ CTANGLE = ctangle
 # default
 LINK.C = $(LINK.cc)
 # environment
-PWD = /Users/work/documents/Proj/pg_linearAlgebra
+PWD = /Users/work/documents/Proj/pg_linearalgebra
 # default
 LINK.S = $(CC) $(ASFLAGS) $(CPPFLAGS) $(LDFLAGS) $(TARGET_MACH)
 # default

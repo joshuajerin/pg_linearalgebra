@@ -12,11 +12,6 @@
     fn matrix_to_array(matrix: Vec<Vec<f64>>) -> Array2<f64> {
         Array2::from_shape_vec((matrix.len(), matrix[0].len()), matrix.into_iter().flatten().collect()).unwrap()
     }
-    
-    fn array_to_matrix(array: Array2<f64>) -> Vec<Vec<f64>> {
-        let (rows, cols) = array.dim();
-        (0..rows).map(|i| array.row(i).to_vec()).collect()
-    }
 
 #[pg_extern]
 fn matrix_add(matrix1: &str, matrix2: &str, rows: i32, cols: i32) -> Result<String, &'static str> {
@@ -154,7 +149,9 @@ fn matrix_svd(matrix: &str, rows: i32, cols: i32) -> Result<String, &'static str
     let (u, sigma, vt) = a.svd(true, true).unwrap();
     
     Ok(format!(
-        "U: {:?}, Sigma: {:?}, V^T: {:?}",
+        "U: {:?} \n
+         Sigma: {:?} \n
+          V^T: {:?}",
         u, sigma, vt
     ))
 }
