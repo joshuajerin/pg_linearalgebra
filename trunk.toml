@@ -1,0 +1,13 @@
+[extension]
+name = "pg_later"
+repository = "https://github.com/joshuajerin/pg_linearalgebra"
+license = "PostgreSQL"
+description = "atrix Operations Extension for postgres"
+homepage = "https://github.com/joshuajerin/pg_linearalgebra"
+documentation = "https://github.com/joshuajerin/pg_linearalgebrar"
+categories = ["orchestration"]
+version = "1.0.0"
+
+[build]
+postgres_version = "14"
+platform = "macos/arm64"

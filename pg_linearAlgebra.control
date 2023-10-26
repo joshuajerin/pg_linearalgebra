@@ -1,4 +1,4 @@
-comment = 'A linear algebra extension'
-default_version = '1.0'
+comment = 'Matrix Operations Extension for postgres'
+default_version = '1.0.0'
 module_pathname = '$libdir/pg_linearalgebra'
 relocatable = true
