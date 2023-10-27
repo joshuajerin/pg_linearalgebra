@@ -4,7 +4,7 @@ repository = "https://github.com/joshuajerin/pg_linearalgebra"
 license = "PostgreSQL"
 description = "atrix Operations Extension for postgres"
 homepage = "https://github.com/joshuajerin/pg_linearalgebra"
-documentation = "https://github.com/joshuajerin/pg_linearalgebrar"
+documentation = "https://github.com/joshuajerin/pg_linearalgebra"
 categories = ["orchestration"]
 version = "1.0.0"
 
